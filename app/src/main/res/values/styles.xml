@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Taraz" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#F8F9FC</item>
+        <item name="android:navigationBarColor">#EAF0F6</item>
+        <item name="android:colorAccent">#2D66E5</item>
+    </style>
+</resources>
