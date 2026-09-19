@@ -11,8 +11,8 @@ android {
         applicationId = "com.taraz.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -21,6 +21,31 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
 }
+
+// Vazirmatn is bundled into the APK at build time, so the app does not depend on
+// an online font service at runtime. The upstream project is licensed under OFL.
+val downloadVazirmatnFonts = tasks.register("downloadVazirmatnFonts") {
+    outputs.files(
+        file("src/main/res/font/vazirmatn_regular.ttf"),
+        file("src/main/res/font/vazirmatn_medium.ttf"),
+        file("src/main/res/font/vazirmatn_bold.ttf")
+    )
+    doLast {
+        val fontDir = file("src/main/res/font")
+        fontDir.mkdirs()
+        val fonts = mapOf(
+            "vazirmatn_regular.ttf" to "https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-Regular.ttf",
+            "vazirmatn_medium.ttf" to "https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-Medium.ttf",
+            "vazirmatn_bold.ttf" to "https://raw.githubusercontent.com/rastikerdar/vazirmatn/master/fonts/ttf/Vazirmatn-Bold.ttf"
+        )
+        fonts.forEach { (name, url) ->
+            val target = file("src/main/res/font/$name")
+            java.net.URI(url).toURL().openStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+        }
+    }
+}
+
+tasks.named("preBuild") { dependsOn(downloadVazirmatnFonts) }
 
 dependencies {
     val bom = platform("androidx.compose:compose-bom:2024.12.01")
