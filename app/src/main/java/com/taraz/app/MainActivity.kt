@@ -77,24 +77,14 @@ private fun dec(value: String): String = runCatching { String(Base64.decode(valu
 
 class Db(context: Context) {
     private val p = context.getSharedPreferences("taraz_db", Context.MODE_PRIVATE)
-    fun loadTx(): List<Tx> = p.getString("tx", "")!!.split("~").filter { it.isNotBlank() }.mapNotNull {
-        val x = it.split("|")
-        if (x.size == 7) Tx(x[0].toLongOrNull() ?: return@mapNotNull null, x[1], x[2].toLongOrNull() ?: return@mapNotNull null, x[3].toBoolean(), x[4], x[5], x[6]) else null
-    }.sortedByDescending { it.id }
+    fun loadTx(): List<Tx> = p.getString("tx", "")!!.split("~").filter { it.isNotBlank() }.mapNotNull { val x = it.split("|"); if (x.size == 7) Tx(x[0].toLongOrNull() ?: return@mapNotNull null, x[1], x[2].toLongOrNull() ?: return@mapNotNull null, x[3].toBoolean(), x[4], x[5], x[6]) else null }.sortedByDescending { it.id }
     fun saveTx(list: List<Tx>) = p.edit().putString("tx", list.joinToString("~") { listOf(it.id, it.title, it.amount, it.income, it.date, it.category, it.account).joinToString("|") }).apply()
-    fun loadAccounts(): List<BankAccount> = p.getString("accounts", "")!!.split("~").filter { it.isNotBlank() }.mapNotNull { row ->
-        val x = row.split("|")
-        if (x.size != 8) return@mapNotNull null
-        BankAccount(x[0].toLongOrNull() ?: return@mapNotNull null, dec(x[1]), dec(x[2]), dec(x[3]), dec(x[4]), dec(x[5]), dec(x[6]), x[7].toLongOrNull() ?: 0L)
-    }.sortedByDescending { it.id }
+    fun loadAccounts(): List<BankAccount> = p.getString("accounts", "")!!.split("~").filter { it.isNotBlank() }.mapNotNull { row -> val x = row.split("|"); if (x.size != 8) return@mapNotNull null; BankAccount(x[0].toLongOrNull() ?: return@mapNotNull null, dec(x[1]), dec(x[2]), dec(x[3]), dec(x[4]), dec(x[5]), dec(x[6]), x[7].toLongOrNull() ?: 0L) }.sortedByDescending { it.id }
     fun saveAccounts(list: List<BankAccount>) = p.edit().putString("accounts", list.joinToString("~") { listOf(it.id, enc(it.bankName), enc(it.accountName), enc(it.accountNumber), enc(it.cardNumber), enc(it.senderNumber), enc(it.smsPattern), it.balance).joinToString("|") }).apply()
 }
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        setContent { CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) { TarazApp(Db(this)) } }
-    }
+    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) { TarazApp(Db(this)) } } }
 }
 
 @Composable
@@ -108,7 +98,7 @@ fun TarazApp(db: Db) {
         Scaffold(containerColor = Bg, bottomBar = { BottomNav(page) { page = it } }) { padding ->
             Box(Modifier.padding(padding).fillMaxSize()) {
                 when (page) {
-                    "home" -> Home(txs, accounts) { page = "add" }
+                    "home" -> Home(txs, accounts, { page = "add" }, { page = "accounts" }, { page = "sms" })
                     "tx" -> Transactions(txs) { page = "add" }
                     "add" -> AddTransaction({ addTx(it); page = "tx" }) { page = "home" }
                     "sms" -> SmsPage(accounts) { addTx(it); page = "tx" }
@@ -122,50 +112,24 @@ fun TarazApp(db: Db) {
 }
 
 @Composable
-fun BottomNav(page: String, go: (String) -> Unit) {
-    NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) {
-        listOf(Triple("home", "داشبورد", Icons.Default.Dashboard), Triple("tx", "تراکنش‌ها", Icons.Default.ReceiptLong), Triple("add", "ثبت", Icons.Default.AddCircle), Triple("sms", "پیامک", Icons.Default.Sms), Triple("more", "امکانات", Icons.Default.GridView)).forEach { (route, title, icon) ->
-            NavigationBarItem(selected = page == route, onClick = { go(route) }, icon = { Box(Modifier.clip(RoundedCornerShape(14.dp)).background(if (page == route) BlueSoft else Color.Transparent).padding(horizontal = 10.dp, vertical = 4.dp)) { Icon(icon, null, tint = if (page == route) Blue else Muted) } }, label = { Text(title, fontSize = 11.sp, color = if (page == route) Blue else Muted) }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent))
-        }
-    }
-}
+fun BottomNav(page: String, go: (String) -> Unit) { NavigationBar(containerColor = Color.White, tonalElevation = 8.dp) { listOf(Triple("home", "داشبورد", Icons.Default.Dashboard), Triple("tx", "تراکنش‌ها", Icons.Default.ReceiptLong), Triple("add", "ثبت", Icons.Default.AddCircle), Triple("sms", "پیامک", Icons.Default.Sms), Triple("more", "امکانات", Icons.Default.GridView)).forEach { (route, title, icon) -> NavigationBarItem(selected = page == route, onClick = { go(route) }, icon = { Box(Modifier.clip(RoundedCornerShape(14.dp)).background(if (page == route) BlueSoft else Color.Transparent).padding(horizontal = 10.dp, vertical = 4.dp)) { Icon(icon, null, tint = if (page == route) Blue else Muted) } }, label = { Text(title, fontSize = 11.sp, color = if (page == route) Blue else Muted) }, colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent)) } } }
 
 @Composable
-fun Header(title: String, subtitle: String? = null, back: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-        if (back != null) IconButton(onClick = back) { Icon(Icons.Default.ArrowForward, null, tint = Ink) } else Spacer(Modifier.size(48.dp))
-        Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(title, fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Ink); if (subtitle != null) Text(subtitle, color = Muted, fontSize = 12.sp) }
-        Box(Modifier.size(42.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) { Icon(Icons.Default.Tune, null, tint = Muted) }
-    }
-}
+fun Header(title: String, subtitle: String? = null, back: (() -> Unit)? = null) { Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { if (back != null) IconButton(onClick = back) { Icon(Icons.Default.ArrowForward, null, tint = Ink) } else Spacer(Modifier.size(48.dp)); Column(horizontalAlignment = Alignment.CenterHorizontally) { Text(title, fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Ink); if (subtitle != null) Text(subtitle, color = Muted, fontSize = 12.sp) }; Box(Modifier.size(42.dp).clip(CircleShape).background(Color.White), contentAlignment = Alignment.Center) { Icon(Icons.Default.Tune, null, tint = Muted) } } }
 
 @Composable
-fun SectionTitle(title: String, action: String? = null) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink); if (action != null) Text(action, color = Blue, fontSize = 13.sp, fontWeight = FontWeight.Medium) }
-}
+fun SectionTitle(title: String, action: String? = null, onAction: (() -> Unit)? = null) { Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Ink); if (action != null) Text(action, color = Blue, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = if (onAction != null) Modifier.clickable { onAction() } else Modifier) } }
 
 @Composable
-fun Home(txs: List<Tx>, accounts: List<BankAccount>, onAdd: () -> Unit) {
+fun Home(txs: List<Tx>, accounts: List<BankAccount>, onAdd: () -> Unit, onAccounts: () -> Unit, onSms: () -> Unit) {
     val income = txs.filter { it.income }.sumOf { it.amount }; val expense = txs.filter { !it.income }.sumOf { it.amount }; val accountBalance = accounts.sumOf { it.balance }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Header("داشبورد مالی", "مدیریت هوشمند درآمد، هزینه و حساب‌ها")
-        Card(Modifier.padding(horizontal = 20.dp).fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Blue)) {
-            Column(Modifier.padding(22.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Column { Text("مانده کل", color = Color.White.copy(.78f), fontSize = 14.sp); Text(money(accountBalance + income - expense), color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Bold) }; Box(Modifier.size(52.dp).clip(CircleShape).background(Color.White.copy(.16f)), contentAlignment = Alignment.Center) { Icon(Icons.Default.AccountBalanceWallet, null, tint = Color.White) } }
-                Spacer(Modifier.height(18.dp)); Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) { SummaryPill("درآمد", income, Icons.Default.ArrowUpward, Modifier.weight(1f)); SummaryPill("هزینه", expense, Icons.Default.ArrowDownward, Modifier.weight(1f)) }
-                Spacer(Modifier.height(16.dp)); Button(onClick = onAdd, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Blue), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("ثبت تراکنش جدید") }
-            }
-        }
+        Card(Modifier.padding(horizontal = 20.dp).fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = Blue)) { Column(Modifier.padding(22.dp)) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) { Column { Text("مانده کل", color = Color.White.copy(.78f), fontSize = 14.sp); Text(money(accountBalance + income - expense), color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Bold) }; Box(Modifier.size(52.dp).clip(CircleShape).background(Color.White.copy(.16f)), contentAlignment = Alignment.Center) { Icon(Icons.Default.AccountBalanceWallet, null, tint = Color.White) } }; Spacer(Modifier.height(18.dp)); Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) { SummaryPill("درآمد", income, Icons.Default.ArrowUpward, Modifier.weight(1f)); SummaryPill("هزینه", expense, Icons.Default.ArrowDownward, Modifier.weight(1f)) }; Spacer(Modifier.height(16.dp)); Button(onClick = onAdd, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Blue), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(6.dp)); Text("ثبت تراکنش جدید") } } }
         SectionTitle("دسترسی سریع")
-        Row(Modifier.padding(horizontal = 20.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            QuickCard("بودجه", "مدیریت بودجه", Icons.Default.PieChart, Purple, PurpleSoft, Modifier.weight(1f)) { }
-            QuickCard("حساب‌ها", "${accounts.size} حساب", Icons.Default.AccountBalance, Teal, TealSoft, Modifier.weight(1f)) { }
-            QuickCard("پیامک", "الگوی بانکی", Icons.Default.Sms, Orange, OrangeSoft, Modifier.weight(1f)) { }
-        }
+        Row(Modifier.padding(horizontal = 20.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) { QuickCard("بودجه", "مدیریت بودجه", Icons.Default.PieChart, Purple, PurpleSoft, Modifier.weight(1f)) { }; QuickCard("حساب‌ها", "${accounts.size} حساب", Icons.Default.AccountBalance, Teal, TealSoft, Modifier.weight(1f), onAccounts); QuickCard("پیامک", "الگوی بانکی", Icons.Default.Sms, Orange, OrangeSoft, Modifier.weight(1f), onSms) }
         Spacer(Modifier.height(8.dp))
-        Card(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clickable { }, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = TealSoft), border = BorderStroke(1.dp, Teal.copy(.18f))) {
-            Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(46.dp).clip(CircleShape).background(Teal.copy(.13f)), contentAlignment = Alignment.Center) { Icon(Icons.Default.AccountBalance, null, tint = Teal) }; Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text("حساب‌ها و کارت‌ها", fontWeight = FontWeight.Bold, color = Ink); Text("مدیریت حساب، سرشماره و الگوی پیامک", color = Muted, fontSize = 11.sp) }; Icon(Icons.Default.ChevronLeft, null, tint = Teal) }
-        }
+        Card(Modifier.padding(horizontal = 20.dp).fillMaxWidth().clickable { onAccounts() }, shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(containerColor = TealSoft), border = BorderStroke(1.dp, Teal.copy(.18f))) { Row(Modifier.padding(17.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(46.dp).clip(CircleShape).background(Teal.copy(.13f)), contentAlignment = Alignment.Center) { Icon(Icons.Default.AccountBalance, null, tint = Teal) }; Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text("حساب‌ها و کارت‌ها", fontWeight = FontWeight.Bold, color = Ink); Text("مدیریت حساب، سرشماره و الگوی پیامک", color = Muted, fontSize = 11.sp) }; Icon(Icons.Default.ChevronLeft, null, tint = Teal) } }
         SectionTitle("آخرین تراکنش‌ها", "مشاهده همه")
         if (txs.isEmpty()) EmptyCard() else txs.take(4).forEach { TransactionCard(it) }
         Spacer(Modifier.height(90.dp))
