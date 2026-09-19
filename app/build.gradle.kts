@@ -1,3 +1,5 @@
+import java.net.URL
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -40,7 +42,9 @@ val downloadVazirmatnFonts = tasks.register("downloadVazirmatnFonts") {
         )
         fonts.forEach { (name, url) ->
             val target = file("src/main/res/font/$name")
-            java.net.URI(url).toURL().openStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+            URL(url).openStream().use { input ->
+                target.outputStream().use { output -> input.copyTo(output) }
+            }
         }
     }
 }
