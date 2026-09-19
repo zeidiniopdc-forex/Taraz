@@ -2,6 +2,9 @@ package com.taraz.app
 
 import android.content.Context
 import android.os.Bundle
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -84,12 +87,24 @@ class Db(context: Context) {
 }
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) { TarazApp(Db(this)) } } }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        val openSms = intent.getBooleanExtra("open_sms", false)
+        setContent {
+            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                TarazApp(Db(this), if (openSms) "sms" else "home")
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2001)
+        }
+    }
 }
 
 @Composable
-fun TarazApp(db: Db) {
-    var page by remember { mutableStateOf("home") }
+fun TarazApp(db: Db, initialPage: String = "home") {
+    var page by remember { mutableStateOf(initialPage) }
     var txs by remember { mutableStateOf(db.loadTx()) }
     var accounts by remember { mutableStateOf(db.loadAccounts()) }
     fun addTx(tx: Tx) { txs = listOf(tx) + txs; db.saveTx(txs) }
